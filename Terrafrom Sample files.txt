@@ -1,0 +1,252 @@
+sudo yum install -y yum-utils shadow-utils
+sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+sudo yum -y install terraform
+
+
+create access key 
+
+aws configure
+
+sample 
+
+
+provider "aws" {
+    region = "us-east-1"  # Set your desired AWS region
+}
+
+resource "aws_instance" "edupoly" {
+    ami           = "ami-053a45fff0a704a47"  
+    instance_type = "t2.micro"
+}
+
+
+
+terraform init
+
+terraform apply
+terrfaform plan
+
+terraform statefile
+
+terraform destroy
+
+========================================
+
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "my_instance" {
+  ami           = "ami-053a45fff0a704a47" # Replace with a valid AMI ID
+  instance_type = "t2.micro"
+
+  tags = {
+    Name = "Terraform-Instance"
+  }
+}
+
+
+
+=======================================
+2. AWS EC2 Instance with Security Group
+
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+count = 3 
+
+resource "aws_security_group" "allow_ssh" {
+  name        = "allow_ssh"
+  description = "Allow SSH inbound traffic"
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_instance" "web_server" {
+  ami                    = "ami-053a45fff0a704a47" # Replace with a valid AMI ID
+  instance_type          = "t2.micro"
+  vpc_security_group_ids = [aws_security_group.allow_ssh.id]
+
+  tags = {
+    Name = "Terraform-Web-Server"
+  }
+}
+
+
+================================================
+3. AWS S3 Bucket Creation
+
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_s3_bucket" "my_bucket" {
+  bucket = "my-terraform-bucket-edupoly" 
+  acl    = "private"
+}
+
+
+
+
+===============================================
+
+ AWS VPC with Subnet and EC2 Instance
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_vpc" "my_vpc" {
+  cidr_block = "10.0.0.0/16"
+
+  tags = {
+    Name = "MyTerraformVPC"
+  }
+}
+
+resource "aws_subnet" "my_subnet" {
+  vpc_id                  = aws_vpc.my_vpc.id
+  cidr_block              = "10.0.1.0/24"
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "MySubnet"
+  }
+}
+
+resource "aws_instance" "my_instance" {
+  ami           = "ami-053a45fff0a704a47" # Replace with a valid AMI ID
+  instance_type = "t2.micro"
+  subnet_id     = aws_subnet.my_subnet.id
+
+  tags = {
+    Name = "MyTerraformInstance"
+  }
+}
+
+
+
+====================================================
+ AWS IAM User Creation
+
+
+provider "aws" {
+  region = "us-west-2"
+}
+
+resource "aws_iam_user" "terraform_user" {
+  name = "TerraformUser"
+}
+
+resource "aws_iam_access_key" "terraform_user_key" {
+  user = aws_iam_user.terraform_user.name
+}
+
+output "aws_access_key" {
+  value = aws_iam_access_key.terraform_user_key.id
+}
+
+output "aws_secret_key" {
+  value     = aws_iam_access_key.terraform_user_key.secret
+  sensitive = true
+}
+
+
+======================================
+AWS RDS (MySQL) Database
+
+
+
+provider "aws" {
+  region = "us-west-2"
+}
+
+resource "aws_db_instance" "mydb" {
+  identifier             = "mydb-instance"
+  engine                 = "mysql"
+  instance_class         = "db.t2.micro"
+  allocated_storage      = 20
+  storage_type           = "gp2"
+  username              = "admin"
+  password              = "TerraformPassword123!"
+  skip_final_snapshot    = true
+  publicly_accessible    = true
+}
+
+output "db_endpoint" {
+  value = aws_db_instance.mydb.endpoint
+}
+
+
+
+===============================================
+AWS Load Balancer with Auto Scaling
+
+provider "aws" {
+  region = "us-west-2"
+}
+
+resource "aws_launch_configuration" "web" {
+  name          = "web_config"
+  image_id      = "ami-0c55b159cbfafe1f0"
+  instance_type = "t2.micro"
+}
+
+resource "aws_autoscaling_group" "web" {
+  launch_configuration = aws_launch_configuration.web.id
+  min_size             = 2
+  max_size             = 5
+  vpc_zone_identifier  = ["subnet-xxxxxxxx"] # Replace with valid subnet ID
+
+  tag {
+    key                 = "Name"
+    value               = "WebServer"
+    propagate_at_launch = true
+  }
+}
+
+resource "aws_lb" "web_lb" {
+  name               = "web-load-balancer"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = ["sg-xxxxxxxx"] # Replace with a valid security group ID
+  subnets           = ["subnet-xxxxxx", "subnet-yyyyyy"] # Replace with valid subnet IDs
+}
+
+resource "aws_lb_target_group" "web_tg" {
+  name     = "web-target-group"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = "vpc-xxxxxxxx" # Replace with a valid VPC ID
+}
+
+resource "aws_lb_listener" "web_listener" {
+  load_balancer_arn = aws_lb.web_lb.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.web_tg.arn
+  }
+}
+
+
+
+===================================================
